@@ -67,13 +67,32 @@ Run both controls and three repetitions of the failing case with:
 python3 check.py
 ```
 
-## Scope and untested entry points
+## External UNO and macro controls
 
-The failure is demonstrated when accepting changes through **LibreOfficeKit**, using `runMacro` to invoke the command. Loading and PDF export alone through LibreOfficeKit succeed.
+The same operation was also tested through a standalone `soffice` listener and a separate Python/pyuno client, both from the identical official LibreOffice 26.8.3.1 installation. No LibreOfficeKit client was started in these controls.
 
-The Basic macro uses UNO objects internally. However, executing the same accept-all command through an **external UNO client** or the **Writer graphical interface** has not been tested. This report therefore does not establish that the failure is exclusive to LibreOfficeKit.
+- Direct external UNO dispatch of `.uno:AcceptAllTrackedChanges` succeeds repeatedly with the original hidden fixture.
+- Invoking the **unchanged Basic macro** through the external UNO application script provider also succeeds repeatedly with that fixture.
+- Every acceptance case reduces the redline count from one to zero and produces a PDF parsed successfully by `pdfinfo` and `pdftotext`.
+- The matrix covers unchanged source display settings, a separate `ShowChanges=False` request, both fixtures, and both `Hidden=True` and `Hidden=False` frame settings. All 20 acceptance cases and four export-only controls succeed.
 
-Earlier tests with LibreOffice 26.8.2.2 succeeded when converting the document to PDF using `soffice --headless --convert-to pdf` or Gotenberg 8's UNO-based conversion. Those tests did not execute the accept-all command, so they are not equivalent controls for the failing operation.
+The export-only controls establish genuine hidden rendering: the original `insDel="0"` fixture omits `Old` before acceptance, while the `insDel="1"` control includes it. The document's `ShowChanges` getter returns `True` for both fixtures and must not be interpreted as proof that deletions are rendered visibly. See [the external UNO harness and complete results](uno/README.md).
+
+These results show that the macro's Basic code alone is insufficient to trigger the failure. The failing tested context remains LibreOfficeKit's `runMacro` invocation. An alternative, non-macro accept-all invocation inside LibreOfficeKit and interaction through the Writer graphical interface have not been tested; this is not a claim that every other entry point is unaffected.
+
+Earlier ordinary command-line and UNO-based PDF conversions did not execute the accept-all command. The external UNO controls above do execute that same command and therefore provide the relevant comparison.
+
+## Redline-notification diagnostic control
+
+With the same LibreOfficeKit reproducer, original hidden fixture, and unchanged Basic macro, setting only `DISABLE_REDLINE=1` makes acceptance and PDF export succeed in **3/3 runs**. The default environment still times out at `accept-changes.begin`.
+
+```sh
+docker run --rm --platform linux/arm64 --cpus 4 --memory 4g \
+  -e DISABLE_REDLINE=1 -v "$PWD/fixtures:/fixtures:ro" \
+  libreoffice-redline-repro:26.8.3 /fixtures/hidden-deletion.docx /tmp/out.pdf
+```
+
+In the [26.8.3.1 source](https://github.com/LibreOffice/core/blob/libreoffice-26.8.3.1/sw/source/core/doc/docredln.cxx#L337), this environment variable bypasses LOK-specific redline notifications. That notification function [calls `aCursor.FillRects()`](https://github.com/LibreOffice/core/blob/libreoffice-26.8.3.1/sw/source/core/doc/docredln.cxx#L375), consistent with the captured layout stack. This narrows the failure to the LOK redline-notification/layout path; it does not identify the exact faulty layout condition or constitute a patch.
 
 ## Environment
 

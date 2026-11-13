@@ -6,7 +6,7 @@ The 1,448-byte DOCX contains a table with one cell whose only text is marked as 
 
 **Loading and direct PDF export through LibreOfficeKit succeed. Invoking “Accept All Tracked Changes” through a Basic macro called by LibreOfficeKit's `runMacro` hangs in Writer's layout code.** This reproduction uses neither Gotenberg nor its Go program `lok`.
 
-Executing the same accept-all operation through an external UNO client or the Writer graphical interface has not been tested. The macro uses UNO objects internally, but that does not make this an external UNO-client test. The current evidence does not establish that only LibreOfficeKit is affected.
+The same accept-all operation succeeds through an external standalone UNO client, both by direct dispatch and by invoking the unchanged Basic macro. Export-only controls verify that the original fixture genuinely hides the deleted text. The UNO comparison confirms 24 successful cases; see [uno/README.md](uno/README.md). Interaction through the Writer graphical interface has not been tested.
 
 ## Build once
 
@@ -79,11 +79,31 @@ docker run --rm --platform linux/arm64 --cpus 4 --memory 4g \
   /fixtures/hidden-deletion.docx /tmp/out.pdf
 ```
 
+## External UNO and notification controls
+
+Run the external UNO comparison with the same image (host prerequisites: Python 3, `pdfinfo`, and `pdftotext`):
+
+```sh
+python3 uno/check.py --output results/uno-confirmation
+```
+
+Use a new output directory when repeating the matrix. Both direct dispatch and the unchanged Basic macro successfully accept the hidden fixture and export a valid PDF through standalone UNO. The macro's Basic code alone is therefore insufficient to trigger the LOK failure.
+
+A separate one-factor LOK test succeeds in 3/3 runs when only redline notifications are disabled:
+
+```sh
+docker run --rm --platform linux/arm64 --cpus 4 --memory 4g \
+  -e DISABLE_REDLINE=1 -v "$PWD/fixtures:/fixtures:ro" \
+  libreoffice-redline-repro:26.8.3 /fixtures/hidden-deletion.docx /tmp/out.pdf
+```
+
+The default environment still hangs. This diagnostic control isolates the LOK redline-notification/layout path; the exact faulty layout condition remains unresolved. Details and source references are in `BUG-REPORT.md`.
+
 ## Contents and sharing
 
 This directory contains only custom reproduction programs, official LibreOfficeKit headers, and synthetic DOCX fixtures. It does not read any customer files. The headers in `include/LibreOfficeKit/` come from the official `libreoffice-26.8.3.1` source tag and retain their MPL-2.0 license notices.
 
-A ready-to-use report is available in `BUG-REPORT.md`; the short repository description is in `DESCRIPTION.txt`. The search for existing reports and comparison with related issues are documented in `BUG-REPORT-SEARCH.md`. No bug report or comment has been published.
+A ready-to-use report is available in `BUG-REPORT.md`; the short repository description is in `DESCRIPTION.txt`. The search for existing reports and comparison with related issues are documented in `BUG-REPORT-SEARCH.md`. No report or comment has been submitted to a bug tracker.
 
 ## Verification results
 
