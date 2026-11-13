@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="Repro" script:language="StarBasic">
+Sub AcceptChanges
+  Dim docs, doc, dispatcher
+  docs = StarDesktop.Components.createEnumeration()
+  doc = docs.nextElement()
+  dispatcher = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+  dispatcher.executeDispatch(doc.getCurrentController().getFrame(), &quot;.uno:AcceptAllTrackedChanges&quot;, &quot;&quot;, 0, Array())
+End Sub
+</script:module>

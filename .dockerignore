@@ -1,0 +1,6 @@
+results/
+*.md
+check.py
+fixtures/
+__pycache__/
+.git/

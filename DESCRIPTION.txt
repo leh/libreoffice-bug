@@ -1,0 +1,1 @@
+Minimal Docker/C reproducer for a LibreOfficeKit hang when accepting hidden tracked deletions in a table cell (LibreOffice 26.8.3).
